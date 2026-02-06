@@ -5,6 +5,7 @@ namespace App\Filament\Cashier\Pages;
 use App\Models\Product;
 use App\Models\Variant;
 use Filament\Pages\Page;
+use Filament\Actions\Action;
 use Filament\Schemas\Schema;
 use Livewire\Attributes\Computed;
 use Illuminate\Contracts\View\View;
@@ -21,8 +22,8 @@ class Products extends Page implements HasForms
     protected string $view = 'filament.cashier.pages.products';
 
     public array $data = [
-        'search' => '',
-        'category' => null,
+        'product_name' => '',
+        'variant' => '',
     ];
 
     public array $cart_ids = [];
@@ -43,17 +44,25 @@ class Products extends Page implements HasForms
             ->schema([
                 Grid::make(4)
                     ->schema([
-                        TextInput::make('search')
+                        TextInput::make('product_name')
                             ->placeholder('Search products...')
                             ->prefixIcon('heroicon-m-magnifying-glass')
                             ->hiddenLabel()
                             ->live(debounce: 500)
+                            ->suffixAction(
+                                Action::make('clear')
+                                    ->icon('heroicon-m-x-mark')
+                                    ->color('gray')
+                                    ->action(function ($set) {
+                                        $set('product_name', '');
+                                    })
+                            )
                             ->columnSpan(['md' => 2]),
-                        Select::make('category')
+                        Select::make('variant')
                             ->options(Variant::pluck('name', 'id'))
                             ->searchable()
                             ->preload()
-                            ->placeholder('All Categories')
+                            ->placeholder('All Variants')
                             ->hiddenLabel()
                             ->live()
                             ->columnSpan(['md' => 1]),
@@ -65,7 +74,12 @@ class Products extends Page implements HasForms
     #[Computed]
     public function products()
     {
-        return Product::whereLike('name', "{$this->data['search']}%")->get();
+        return Product::whereLike('name', "{$this->data['product_name']}%")
+            ->when(
+                $this->data['variant'],
+                fn($query) => $query->where('variant_id', $this->data['variant'])
+            )
+            ->get();
     }
 
     #[Computed]
