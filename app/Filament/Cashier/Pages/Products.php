@@ -5,19 +5,27 @@ namespace App\Filament\Cashier\Pages;
 use App\Models\Product;
 use App\Models\Variant;
 use Filament\Pages\Page;
+use Illuminate\View\View;
 use Filament\Actions\Action;
 use Filament\Schemas\Schema;
 use Livewire\Attributes\Computed;
-use Illuminate\Contracts\View\View;
 use Filament\Forms\Components\Select;
 use Filament\Schemas\Components\Grid;
 use Filament\Forms\Contracts\HasForms;
+use Filament\Tables\Contracts\HasTable;
 use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
+use Filament\Actions\Contracts\HasActions;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Concerns\InteractsWithForms;
+use Filament\Tables\Concerns\InteractsWithTable;
+use Filament\Actions\Concerns\InteractsWithActions;
 
-class Products extends Page implements HasForms
+class Products extends Page implements HasForms, HasTable, HasActions
 {
     use InteractsWithForms;
+    use InteractsWithTable;
+    use InteractsWithActions;
 
     protected string $view = 'filament.cashier.pages.products';
 
@@ -27,6 +35,14 @@ class Products extends Page implements HasForms
     ];
 
     public array $cart_ids = [];
+
+    public string $customer = '';
+
+    public string $payment_method = '';
+
+    public int $payment_amount = 0;
+
+    public bool $showCheckoutModal = false;
 
     public function mount(): void
     {
@@ -82,6 +98,30 @@ class Products extends Page implements HasForms
             ->get();
     }
 
+    public function modalForm(Schema $schema): Schema
+    {
+        return $schema
+            ->schema([
+                Grid::make(2)
+                    ->schema([
+                        TextInput::make('customer')
+                            ->placeholder('Customer Name')
+                            ->required(),
+                        TextInput::make('payment_amount')
+                            ->placeholder('Payment Amount')
+                            ->required(),
+                        Select::make('payment_method')
+                            ->options([
+                                'cash' => 'Cash',
+                                'cashless' => 'Cashless',
+                            ])
+                            ->required(),
+                        Placeholder::make('denominations')->content(view('filament.cashier.components.dedominations')),
+                    ])
+            ])
+            ->statePath('data');
+    }
+
     #[Computed]
     public function carts()
     {
@@ -117,8 +157,50 @@ class Products extends Page implements HasForms
         $this->cart_ids[] = $id;
     }
 
+    public function removeFromCart($id)
+    {
+        $this->cart_ids = array_values(array_diff($this->cart_ids, [$id]));
+    }
+
     public function clearCart()
     {
         $this->cart_ids = [];
+    }
+
+    public function openCheckout()
+    {
+        $this->showCheckoutModal = true;
+    }
+
+    public function save()
+    {
+        // Validasi data
+        $this->validate([
+            'checkoutData.customer_name' => 'required|string|min:3',
+            'checkoutData.phone' => 'nullable|string',
+            'checkoutData.notes' => 'nullable|string',
+        ]);
+
+        // Proses checkout
+        logger('Checkout data:', $this->checkoutData);
+
+        Notification::make()
+            ->title('Berhasil!')
+            ->body('Transaksi berhasil diproses.')
+            ->success()
+            ->send();
+
+        // Reset form
+        $this->checkoutData = [
+            'customer_name' => '',
+            'phone' => '',
+            'notes' => '',
+        ];
+
+        // Reset keranjang
+        $this->clearCart();
+
+        // Close modal
+        $this->dispatch('close-modal', id: 'checkout');
     }
 }
