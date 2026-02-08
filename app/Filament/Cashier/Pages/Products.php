@@ -23,6 +23,8 @@ use Filament\Actions\Contracts\HasActions;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Actions\Concerns\InteractsWithActions;
+use BackedEnum;
+use Filament\Support\Icons\Heroicon;
 
 class Products extends Page implements HasForms, HasActions
 {
@@ -30,7 +32,7 @@ class Products extends Page implements HasForms, HasActions
     use InteractsWithForms;
     use InteractsWithActions;
 
-    protected $paginationTheme = 'tailwind';
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::ShoppingCart;
 
     protected string $view = 'filament.cashier.pages.products';
 
