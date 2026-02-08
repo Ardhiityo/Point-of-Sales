@@ -10,26 +10,27 @@ use Illuminate\View\View;
 use App\Models\Transaction;
 use Filament\Actions\Action;
 use Filament\Schemas\Schema;
+use Livewire\WithPagination;
 use Filament\Facades\Filament;
 use Livewire\Attributes\Computed;
 use Illuminate\Support\Facades\DB;
 use Filament\Forms\Components\Select;
 use Filament\Schemas\Components\Grid;
 use Filament\Forms\Contracts\HasForms;
-use Filament\Tables\Contracts\HasTable;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Actions\Contracts\HasActions;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Concerns\InteractsWithForms;
-use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Actions\Concerns\InteractsWithActions;
 
-class Products extends Page implements HasForms, HasTable, HasActions
+class Products extends Page implements HasForms, HasActions
 {
+    use WithPagination;
     use InteractsWithForms;
-    use InteractsWithTable;
     use InteractsWithActions;
+
+    protected $paginationTheme = 'tailwind';
 
     protected string $view = 'filament.cashier.pages.products';
 
@@ -100,7 +101,7 @@ class Products extends Page implements HasForms, HasTable, HasActions
                 $this->search['variant'],
                 fn($query) => $query->where('variant_id', $this->search['variant'])
             )
-            ->get();
+            ->paginate(1);
     }
 
     public function modalForm(Schema $schema): Schema

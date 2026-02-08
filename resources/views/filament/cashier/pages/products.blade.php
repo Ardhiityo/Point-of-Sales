@@ -21,6 +21,9 @@
                     </div>
                 @endforeach
             </div>
+            <div class="grid grid-cols-1 mt-6">
+                <x-filament-pagination :paginator="$this->products" />
+            </div>
         </section>
 
         <section class="md:col-span-4 lg:col-span-3">
