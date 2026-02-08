@@ -14,6 +14,10 @@ return new class extends Migration
         Schema::create('transactions', function (Blueprint $table) {
             $table->id();
             $table->string('trx_id');
+            $table->string('customer');
+            $table->unsignedBigInteger('payment_amount');
+            $table->unsignedBigInteger('balance_returned');
+            $table->enum('payment_method', ['cash', 'cashless']);
             $table->unsignedBigInteger('cost_subtotal');
             $table->unsignedBigInteger('cost_grandtotal');
             $table->unsignedBigInteger('sales_subtotal');

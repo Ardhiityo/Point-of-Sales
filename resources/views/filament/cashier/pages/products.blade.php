@@ -3,8 +3,7 @@
         <section class="md:col-span-8 lg:col-span-9 order-last md:order-first">
             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 @foreach ($this->products as $product)
-                    <div
-                        class="bg-gray-900 text-white rounded-xl shadow pb-2 border border-gray-600 flex flex-col h-full">
+                    <div class="bg-gray-900 text-white rounded-xl shadow pb-2 border border-gray-600 flex flex-col h-full">
                         <img src="{{ Storage::url($product->image_path) }}" class="rounded-t-xl h-40 w-full object-cover">
                         <section class="flex flex-col gap-1 p-3 grow">
                             <div class="font-semibold line-clamp-1">{{ $product->name }}</div>
@@ -32,8 +31,7 @@
                 </h3>
                 <div class="flex flex-col gap-2 mt-3">
                     @forelse($this->carts as $cart)
-                        <div
-                            class="flex justify-between items-center border border-gray-600 p-2 rounded-md bg-gray-900">
+                        <div class="flex justify-between items-center border border-gray-600 p-2 rounded-md bg-gray-900">
                             <div class="flex flex-col text-sm">
                                 <div class="font-semibold">{{ $cart['name'] }}</div>
                                 <div class="text-sm">
@@ -43,8 +41,7 @@
                                     </p>
                                 </div>
                             </div>
-                            <x-filament::button wire:click="removeFromCart({{ $cart['id'] }})" color="danger"
-                                size="sm">
+                            <x-filament::button wire:click="removeFromCart({{ $cart['id'] }})" color="danger" size="sm">
                                 <x-filament::icon icon="heroicon-m-trash" class="w-4 h-4" />
                             </x-filament::button>
                         </div>
@@ -68,8 +65,8 @@
                             <x-filament::button wire:click="clearCart()" color="gray" class="flex-1">
                                 Bersihkan
                             </x-filament::button>
-                            <x-filament::button wire:click="openCheckout()" :disabled="empty($this->cart_ids)" color="success"
-                                class="flex-1">
+                            <x-filament::button wire:click="openCheckout()" :disabled="empty($this->cart_ids)"
+                                color="success" class="flex-1">
                                 Checkout
                             </x-filament::button>
                         </div>
@@ -101,8 +98,7 @@
                                 <span class="text-sm font-medium">Total Belanja</span>
                             </div>
                             <div class="text-2xl font-bold">
-                                {{-- Rp {{ number_format($get('total_amount') ?? 0, 0, ',', '.') }} --}}
-                                Rp 10.000
+                                Rp {{ number_format($this->grandtotal, thousands_separator: '.') }}
                             </div>
                         </div>
 
@@ -112,9 +108,8 @@
                                 <span class="text-sm font-medium">Kembalian</span>
                             </div>
                             <div class="text-2xl font-bold">
-                                Rp 10.000
-                                {{-- {{ number_format(max(0, ((int) $get('total_paid') ?? 0) - ((int) $get('total_amount')
-                                ?? 0)), 0, ',', '.') }} --}}
+                                Rp
+                                {{ number_format(data_get($this->checkout, 'balance_returned'), thousands_separator: '.') }}
                             </div>
                         </div>
                     </div>
@@ -125,7 +120,8 @@
 
                     <!-- Modal Footer -->
                     <div class="border-t border-gray-200 mt-6 pt-4 flex gap-2 justify-end">
-                        <x-filament::button wire:click="save()" :disabled="empty($this->cart_ids)" color="success" class="flex-1">
+                        <x-filament::button wire:click="save()" :disabled="empty($this->cart_ids)" color="success"
+                            class="flex-1">
                             Bayar & Simpan
                         </x-filament::button>
                         <x-filament::button wire:click="saveAndPrint()" :disabled="empty($this->cart_ids)" color="success"

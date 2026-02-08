@@ -2,13 +2,17 @@
 
 namespace App\Filament\Cashier\Pages;
 
+use Throwable;
 use App\Models\Product;
 use App\Models\Variant;
 use Filament\Pages\Page;
 use Illuminate\View\View;
+use App\Models\Transaction;
 use Filament\Actions\Action;
 use Filament\Schemas\Schema;
+use Filament\Facades\Filament;
 use Livewire\Attributes\Computed;
+use Illuminate\Support\Facades\DB;
 use Filament\Forms\Components\Select;
 use Filament\Schemas\Components\Grid;
 use Filament\Forms\Contracts\HasForms;
@@ -29,18 +33,19 @@ class Products extends Page implements HasForms, HasTable, HasActions
 
     protected string $view = 'filament.cashier.pages.products';
 
-    public array $data = [
+    public array $search = [
         'product_name' => '',
         'variant' => '',
     ];
 
+    public array $checkout = [
+        'customer' => '',
+        'payment_method' => '',
+        'payment_amount' => 0,
+        'balance_returned' => 0
+    ];
+
     public array $cart_ids = [];
-
-    public string $customer = '';
-
-    public string $payment_method = '';
-
-    public int $payment_amount = 0;
 
     public bool $showCheckoutModal = false;
 
@@ -84,16 +89,16 @@ class Products extends Page implements HasForms, HasTable, HasActions
                             ->columnSpan(['md' => 1]),
                     ])
             ])
-            ->statePath('data');
+            ->statePath('search');
     }
 
     #[Computed]
     public function products()
     {
-        return Product::whereLike('name', "{$this->data['product_name']}%")
+        return Product::whereLike('name', "{$this->search['product_name']}%")
             ->when(
-                $this->data['variant'],
-                fn($query) => $query->where('variant_id', $this->data['variant'])
+                $this->search['variant'],
+                fn($query) => $query->where('variant_id', $this->search['variant'])
             )
             ->get();
     }
@@ -108,6 +113,13 @@ class Products extends Page implements HasForms, HasTable, HasActions
                             ->placeholder('Customer Name')
                             ->required(),
                         TextInput::make('payment_amount')
+                            ->numeric()
+                            ->reactive()
+                            ->debounce(500)
+                            ->afterStateUpdated(function ($state, callable $set) {
+                                $balance_returned = $state - $this->grandtotal();
+                                $set('balance_returned', $balance_returned < 0 ? 0 : $balance_returned);
+                            })
                             ->placeholder('Payment Amount')
                             ->required(),
                         Select::make('payment_method')
@@ -115,11 +127,12 @@ class Products extends Page implements HasForms, HasTable, HasActions
                                 'cash' => 'Cash',
                                 'cashless' => 'Cashless',
                             ])
-                            ->required(),
+                            ->required()
+                            ->exists('transactions', 'payment_method'),
                         Placeholder::make('denominations')->content(view('filament.cashier.components.dedominations')),
                     ])
             ])
-            ->statePath('data');
+            ->statePath('checkout');
     }
 
     #[Computed]
@@ -175,32 +188,74 @@ class Products extends Page implements HasForms, HasTable, HasActions
     public function save()
     {
         // Validasi data
-        $this->validate([
-            'checkoutData.customer_name' => 'required|string|min:3',
-            'checkoutData.phone' => 'nullable|string',
-            'checkoutData.notes' => 'nullable|string',
+        $validated =  $this->validate([
+            'checkout.customer' => 'required|string|min:3',
+            'checkout.payment_amount' => 'required|numeric|gte:' . $this->grandtotal(),
+            'checkout.payment_method' => 'required|string',
+            'checkout.balance_returned' => 'required|numeric|min:0',
         ]);
 
-        // Proses checkout
-        logger('Checkout data:', $this->checkoutData);
+        $products = Product::whereIn('id', array_unique($this->cart_ids))->get();
 
-        Notification::make()
-            ->title('Berhasil!')
-            ->body('Transaksi berhasil diproses.')
-            ->success()
-            ->send();
+        $transaction_products = $this->carts->map(function ($cart) use ($products) {
+            $product = $products->where('id', $cart['id'])->first();
+            return [
+                'product_id' => $product->id,
+                'quantity' => $cart['quantity'],
+                'cost_subtotal' => $product->cost_price * $cart['quantity'],
+                'cost_grandtotal' => $product->cost_price * $cart['quantity'],
+                'sales_subtotal' => $product->sales_price * $cart['quantity'],
+                'sales_grandtotal' => $product->sales_price * $cart['quantity'],
+                'profit' => ($product->sales_price * $cart['quantity']) - ($product->cost_price * $cart['quantity']),
+            ];
+        });
 
-        // Reset form
-        $this->checkoutData = [
-            'customer_name' => '',
-            'phone' => '',
-            'notes' => '',
-        ];
+        try {
+            DB::beginTransaction();
+            $transaction = Transaction::create([
+                'trx_id' => 'TRX' . time() . rand(1000, 9999),
+                'customer' => data_get($validated, 'checkout.customer'),
+                'payment_amount' => data_get($validated, 'checkout.payment_amount'),
+                'balance_returned' => data_get($validated, 'checkout.balance_returned'),
+                'payment_method' => data_get($validated, 'checkout.payment_method'),
+                'cost_subtotal' => $transaction_products->sum('cost_subtotal'),
+                'cost_grandtotal' => $transaction_products->sum('cost_grandtotal'),
+                'sales_subtotal' => $transaction_products->sum('sales_subtotal'),
+                'sales_grandtotal' => $transaction_products->sum('sales_grandtotal'),
+                'profit' => $transaction_products->sum('profit'),
+            ]);
 
-        // Reset keranjang
-        $this->clearCart();
+            $transaction_products->each(function ($transaction_product) use ($transaction) {
+                $transaction->products()->attach($transaction_product['product_id'], [
+                    'quantity' => $transaction_product['quantity'],
+                    'cost_subtotal' => $transaction_product['cost_subtotal'],
+                    'cost_grandtotal' => $transaction_product['cost_grandtotal'],
+                    'sales_subtotal' => $transaction_product['sales_subtotal'],
+                    'sales_grandtotal' => $transaction_product['sales_grandtotal'],
+                    'profit' => $transaction_product['profit'],
+                ]);
+            });
+
+            DB::commit();
+
+            Notification::make()
+                ->title('Berhasil!')
+                ->body('Transaksi berhasil diproses.')
+                ->success()
+                ->send();
+        } catch (Throwable $th) {
+            DB::rollBack();
+
+            Notification::make()
+                ->title('Gagal!')
+                ->body($th->getMessage())
+                ->error()
+                ->send();
+        }
 
         // Close modal
-        $this->dispatch('close-modal', id: 'checkout');
+        $this->showCheckoutModal = false;
+
+        return redirect()->to(Filament::getUrl());
     }
 }
