@@ -103,7 +103,7 @@ class Products extends Page implements HasForms, HasActions
                 $this->search['variant'],
                 fn($query) => $query->where('variant_id', $this->search['variant'])
             )
-            ->paginate(1);
+            ->paginate(12);
     }
 
     public function modalForm(Schema $schema): Schema

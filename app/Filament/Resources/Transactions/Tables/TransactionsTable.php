@@ -1,34 +1,33 @@
 <?php
 
-namespace App\Filament\Resources\Products\Tables;
+namespace App\Filament\Resources\Transactions\Tables;
 
 use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteAction;
-use Filament\Actions\DeleteBulkAction;
-use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
-use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
-class ProductsTable
+class TransactionsTable
 {
     public static function configure(Table $table): Table
     {
         return $table
             ->columns([
-                ImageColumn::make('image_path')
-                    ->rounded()
-                    ->label('Image'),
-                TextColumn::make('name')
+                TextColumn::make('trx_id')
                     ->searchable(),
-                TextColumn::make('variant.name')
-                    ->sortable(),
-                TextColumn::make('cost_price')
+                TextColumn::make('customer')
+                    ->searchable(),
+                TextColumn::make('payment_method')
+                    ->badge(),
+                TextColumn::make('cost_grandtotal')
                     ->prefix('Rp ')
                     ->numeric()
                     ->sortable(),
-                TextColumn::make('sales_price')
+                TextColumn::make('sales_grandtotal')
+                    ->prefix('Rp ')
+                    ->numeric()
+                    ->sortable(),
+                TextColumn::make('profit')
                     ->prefix('Rp ')
                     ->numeric()
                     ->sortable(),
@@ -45,13 +44,11 @@ class ProductsTable
                 //
             ])
             ->recordActions([
-                ViewAction::make(),
-                EditAction::make(),
-                DeleteAction::make(),
+                ViewAction::make()
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
-                    DeleteBulkAction::make(),
+                    //
                 ]),
             ]);
     }
