@@ -23,7 +23,10 @@ return new class extends Migration
             $table->unsignedBigInteger('sales_subtotal');
             $table->unsignedBigInteger('sales_grandtotal');
             $table->unsignedBigInteger('profit');
+            $table->unsignedBigInteger('user_id');
             $table->timestamps();
+
+            $table->foreign('user_id')->references('id')->on('users');
         });
     }
 
